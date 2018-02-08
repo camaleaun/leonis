@@ -237,7 +237,7 @@ add-apt-repository -y ppa:ondrej/php
 apt-get update
 debconf-set-selections <<< 'mysql-server mysql-server/root_password password root'
 debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password root'
-apt-get install -y nginx php$phpversion-curl php$phpversion-dom php$phpversion-gd php$phpversion-fpm php$phpversion-mysql php$phpversion-cli mysql-server-5.7
+apt-get install -y nginx php$phpversion-curl php$phpversion-dom php$phpversion-gd php$phpversion-mbstring php$phpversion-fpm php$phpversion-mysql php$phpversion-cli mysql-server-5.7
 cat <<EOT >> sendmail.sh
 #! /bin/bash
 EOT
