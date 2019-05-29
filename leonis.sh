@@ -15,7 +15,7 @@ else
     name=$1;
 fi
 
-server_name="$name.local"
+server_name="$server_name"
 read -p "server name: ($server_name) " server_name_read;
 if [ -n "$server_name_read" ]; then
   server_name=$server_name_read;
@@ -45,16 +45,10 @@ if [ -n "$title_read" ]; then
   title=$title_read;
 fi
 
-phpversion="7.1"
+phpversion="$phpversion"
 read -p "php version: ($phpversion) " phpversion_read;
 if [ -n "$phpversion_read" ]; then
   phpversion=$phpversion_read;
-fi
-
-theme_uri="https://fervidum.github.io/salvia/"
-read -p "theme uri: ($theme_uri) " theme_uri_read;
-if [ -n "$theme_uri_read" ]; then
-  theme_uri=$theme_uri_read;
 fi
 
 author="Fervidum"
@@ -69,15 +63,15 @@ if [ -n "$author_uri_read" ]; then
   author_uri=$author_uri_read;
 fi
 
-#"/home/camaleaun/vagrant/"
+#"/home/username/vagrant/"
 vagrant_folder="."
 read -p "vagrant folder: ($vagrant_folder/) " vagrant_folder_read;
 if [ -n "$vagrant_folder_read" ]; then
   vagrant_folder=$vagrant_folder_read;
 fi
 
-#user_email="camaleaun@gmail.com"
-#user_name="Gilberto Tavares"
+#user_email="email@email"
+#user_name="First last"
 
 #sudo apt-get update && sudo apt-get -y dist-upgrade
 #sudo timedatectl set-timezone America/Sao_Paulo
@@ -100,21 +94,22 @@ git add README.md
 git commit -m "First commit" -q
 git checkout -b develop -q
 
-rm -f style.css
-cat <<EOT >> style.css
-/*
-Theme Name: $title
-Theme URI: $theme_uri
-Author: $author
-Author URI: $author_uri
-Version: 1.0.0
-Text Domain: $name
+theme_path=wp-content/themes/$name
+
+rm -f $theme_path/style.css
+cat <<EOT >> $theme_path/style.css
+/*!
+Theme Name:   $title
+Author:       $author
+Author URI:   $author_uri
+Version:      1.0.0
+Text Domain:  $name
 */
 
 EOT
 
-rm -f index.php
-cat <<EOT >> index.php
+rm -f $theme_path/index.php
+cat <<EOT >> $theme_path/index.php
 <?php
 /**
  * The main template file.
@@ -131,8 +126,8 @@ get_header(); ?>
 get_footer();
 EOT
 
-rm -f header.php
-cat <<EOT >> header.php
+rm -f $theme_path/header.php
+cat <<EOT >> $theme_path/header.php
 <?php
 /**
  * The header for our theme.
@@ -152,8 +147,8 @@ cat <<EOT >> header.php
 	<body>
 EOT
 
-rm -f footer.php
-cat <<EOT >> footer.php
+rm -f $theme_path/footer.php
+cat <<EOT >> $theme_path/footer.php
 <?php
 /**
  * The template for displaying the footer.
@@ -175,12 +170,46 @@ EOT
 
 rm -f .gitignore
 cat <<EOT >> .gitignore
-.vagrant
-*.log
+# Add any directories, files, or patterns you don't want to be tracked by version control
+/wp*
+
+# Un-ignore plugin and theme
+!/wp-content
+/wp-content/*
+
+!/wp-content/themes
+/wp-content/themes/*
+!/wp-content/plugins
+/wp-content/plugins/*
+!/wp-content/plugins/*.zip
+!/wp-content/themes/*.zip
+!/wp-content/themes/$name
+
+!/wp-cli.*
+/*.php
+/*.txt
+/*.html
+/*.sql
+
+/node_modules
+/vendor
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+/.vagrant
+/*.log
 EOT
 
 rm -f .editorconfig
 cat <<EOT >> .editorconfig
+# This file is for unifying the coding style for different editors and IDEs
+# editorconfig.org
+
+# WordPress Coding Standards
+# https://make.wordpress.org/core/handbook/coding-standards/
+
 root = true
 
 [*]
@@ -191,17 +220,12 @@ trim_trailing_whitespace = true
 indent_style = tab
 indent_size = 4
 
-[{*.css,*.js}]
+[{.jshintrc,*.json,*.yml}]
 indent_style = space
 indent_size = 2
 
-[Gruntfile.js]
-indent_style = tab
-indent_size = 4
-
-[{*.json,*.yml,.jshintrc}]
-indent_style = space
-indent_size = 4
+[{*.txt,wp-config-sample.php}]
+end_of_line = crlf
 EOT
 
 rm -f .jshintrc
@@ -222,33 +246,25 @@ if [ "$vagrant_folder" != "." ]; then
   fi
 fi
 
-#echo "cat > $vagrant_folder/Vagrantfile"
-
 cat > $vagrant_folder/Vagrantfile <<DELIM
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-#export DEBIAN_FRONTEND=noninteractive
-
 \$script = <<SCRIPT
-update-alternatives --set editor /usr/bin/vim.tiny --quiet
-add-apt-repository -y ppa:nginx/development
-add-apt-repository -y ppa:ondrej/php
-apt-get update
-debconf-set-selections <<< 'mysql-server mysql-server/root_password password root'
-debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password root'
-apt-get install -y nginx php$phpversion-curl php$phpversion-dom php$phpversion-gd php$phpversion-mbstring php$phpversion-fpm php$phpversion-mysql php$phpversion-cli mysql-server-5.7
-cat <<EOT >> sendmail.sh
-#! /bin/bash
-EOT
-chmod +x sendmail.sh
-mv sendmail.sh /usr/sbin/sendmail
+update-alternatives --set editor /usr/bin/vim.basic --quiet
+apt-get update && export DEBIAN_FRONTEND=noninteractive
+for p in ppa:ondrej/php; do add-apt-repository -y $p; done && apt-get update
+apt-get install -y nginx php$phpversion-cli php$phpversion-fpm php$phpversion-mysql php$phpversion-curl php$phpversion-dom php$phpversion-gd php$phpversion-mbstring php$phpversion-xml mysql-server-5.7 zip
+apt-get -y dist-upgrade
+mysql -uroot -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '';"
+sed -i 's/# server_tokens off;/server_tokens off;/' /etc/nginx/nginx.conf
+sed -i 's/www-data/vagrant/g' /etc/nginx/nginx.conf
 echo '[$name]
 user = vagrant
 group = vagrant
 listen = /var/run/php$phpversion-fpm-$name.sock
-listen.owner = www-data
-listen.group = www-data
+listen.owner = vagrant
+listen.group = vagrant
 php_admin_value[disable_functions] = exec,passthru,shell_exec,system
 php_admin_flag[allow_url_fopen] = off
 pm = dynamic
@@ -257,7 +273,6 @@ pm.start_servers = 2
 pm.min_spare_servers = 1
 pm.max_spare_servers = 3
 chdir = /' > /etc/php/$phpversion/fpm/pool.d/$name.conf
-service php$phpversion-fpm restart
 echo 'server {
     listen 80;
     listen [::]:80;
@@ -276,47 +291,44 @@ echo 'server {
         fastcgi_pass unix:/run/php$phpversion-fpm-$name.sock;
         fastcgi_param SCRIPT_FILENAME \\\$document_root\\\$fastcgi_script_name;
     }
-}' > /etc/nginx/sites-available/$name
-chmod 644 /etc/nginx/sites-available/$name
-ln -s /etc/nginx/sites-available/$name /etc/nginx/sites-enabled/$name
+}' > /etc/nginx/sites-available/$server_name
+sed -i 's/www-data/vagrant/g' /etc/php/$phpversion/fpm/pool.d/www.conf
 rm /etc/nginx/sites-enabled/default
-rm -Rf /var/www
-service nginx restart
-curl -O -s https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-chmod +x wp-cli.phar
-mv wp-cli.phar /usr/local/bin/wp
-cat <<EOT >> wp-cli.yml
-path: www
-url: http://$server_name\n
+ln -s /etc/nginx/sites-available/$server_name /etc/nginx/sites-enabled/
+systemctl restart nginx php$phpversion-fpm
+sudo -u vagrant -i -- curl -s -o wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && chmod +x wp && sudo mv wp /usr/local/bin/
+sudo -u vagrant -i -- mkdir www && sudo -u vagrant -i -- chmod 755 www
+sudo su - vagrant
+echo -e "path: www
+url: $server_name\n
 core download:
-    locale: pt_BR\n
+  locale: pt_BR
+  force: true\n
 config create:
-    dbname: $name
-    dbuser: root
-    dbpass: root
-    extra-php: |
-        define( 'WP_DEBUG', true );\n
+  dbname: $name
+  dbuser: root
+  extra-php: |
+    define( 'WP_DEBUG', true );
+    define( 'WP_MEMORY_LIMIT', '64M' );
+  force: true\n
 core install:
-    title: $title
-    admin_user: $admin_user
-    admin_password: $admin_password
-    admin_email: $admin_email
-EOT
-chown vagrant:vagrant wp-cli.yml
+  title: $title
+  admin_user: $admin_user
+  admin_password: $admin_password
+  admin_email: $admin_email
+  force: true" > wp-cli.yml
 sudo -u vagrant -i -- wp core download
 sudo -u vagrant -i -- wp config create
 sudo -u vagrant -i -- wp db create
 sudo -u vagrant -i -- wp core install
-sudo -u vagrant -i -- wp theme activate $name
-sudo -u vagrant -i -- wp plugin delete \$(sudo -u vagrant -i -- wp plugin list --status=inactive --field=name)
-sudo -u vagrant -i -- wp theme delete \$(sudo -u vagrant -i -- wp theme list --status=inactive --field=name)
 SCRIPT
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "ubuntu/xenial64"
-  config.vm.network "forwarded_port", guest: 80, host: 8080
+  config.vm.box = "ubuntu/bionic64"
+  config.vm.network "forwarded_port", guest: 80, host: 80
   config.vm.network "private_network", ip: "192.168.33.10"
-  config.vm.synced_folder "$current", "/home/vagrant/www/wp-content/themes/$name"
+  config.vm.synced_folder "$current", "/home/vagrant/www"
+  config.vm.synced_folder "$current/wp-content/themes/$name", "/home/vagrant/www/wp-content/themes/$name"
   config.vm.provision "shell", inline: \$script
 end
 DELIM
