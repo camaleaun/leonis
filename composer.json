@@ -1,0 +1,54 @@
+{
+    "name": "fervidum/leonis",
+    "type": "wp-cli-package",
+    "description": "Command WP-CLI to manage environment development.",
+    "homepage": "https://github.com/fervidum/leonis",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Gilberto Tavares",
+            "email": "camaleaun@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^5.4 || ^7.0",
+        "composer/composer": ">=1.2.0 <1.7.0 || ^1.7.1",
+        "wp-cli/wp-cli": "^2"
+    },
+    "require-dev": {
+        "wp-cli/extension-command": "^1.2 || ^2",
+        "wp-cli/wp-cli-tests": "^2.1"
+    },
+    "extra": {
+        "commands": [
+            "leonis create"
+        ]
+    },
+    "autoload": {
+        "psr-4": {
+            "": "src/"
+        },
+        "files": [
+            "leonis.php"
+        ]
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "scripts": {
+        "behat": "run-behat-tests",
+        "behat-rerun": "rerun-behat-tests",
+        "lint": "run-linter-tests",
+        "phpcs": "run-phpcs-tests",
+        "phpunit": "run-php-unit-tests",
+        "prepare-tests": "install-package-tests",
+        "test": [
+            "@lint",
+            "@phpcs",
+            "@phpunit",
+            "@behat"
+        ]
+    },
+    "support": {
+        "issues": "https://github.com/fervidum/leonis/issues"
+    }
+}

@@ -1,0 +1,22 @@
+---
+require:
+  - bin/command.php
+core download:
+  {{#locale}}
+  locale: {{locale}}
+  {{/locale}}
+  force: true
+config create:
+  dbname: {{slug}}
+  dbuser: root
+  dbpass:
+  force: true
+  skip-check: true
+  extra-php: |
+    define( 'WP_DEBUG', true );
+install:
+  env: @stag
+  plugins:
+    -
+  themes:
+    -

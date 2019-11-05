@@ -1,0 +1,202 @@
+<?php
+/**
+ * WP-CLI commands to project.
+ */
+
+namespace WP_CLI\{{camel_title}};
+
+use Composer\Factory;
+use Composer\IO\NullIO;
+use Composer\Installer;
+use WP_CLI;
+use WP_CLI\ComposerIO;
+use WP_CLI\Utils;
+use WP_CLI\PackageManagerEventSubscriber;
+
+/**
+ * @when before_wp_load
+ */
+class Command {
+
+	/**
+	 * Install project.
+	 *
+	 * ## OPTIONS
+	 *
+	 * --env=<key>
+	 * : Environment key for database.
+	 *
+	 * [--composer]
+	 * : Run composer install.
+	 *
+	 * [--skip-core-download]
+	 * : Skip core download.
+	 *
+	 * @when before_wp_load
+	 */
+	public function install( $args, $assoc_args ) {
+		if ( Utils\get_flag_value( $assoc_args, 'composer', false ) ) {
+			$this->composer_install();
+		}
+		$this->execute_install( $args, $assoc_args );
+	}
+
+	private function execute_install( $args, $assoc_args ) {
+		if ( ! Utils\get_flag_value( $assoc_args, 'skip-core-download' ) ) {
+			WP_CLI::run_command( array( 'core', 'download' ) );
+		}
+		$this->config_create( $args, $assoc_args );
+	}
+
+	private function config_create( $args, $assoc_args ) {
+		WP_CLI::get_runner()->load_wordpress();
+
+		$env = Utils\get_flag_value( $assoc_args, 'env' );
+
+		$aliases = WP_CLI::get_runner()->aliases;
+
+		if ( ! isset( $aliases[ $env ] ) ) {
+			WP_CLI::error( "Alias '{$env}' not found." );
+		} else {
+			$env_args = $aliases[ $env ];
+		}
+
+		if ( ! isset( $env_args['ssh'] ) ) {
+			WP_CLI::error( "Not set 'ssh' in '{$env_args}' alias." );
+		} else {
+			$env_ssh = $env_args['ssh'];
+		}
+
+		$config_create = Utils\get_flag_value( WP_CLI::get_runner()->extra_config, 'config create' );
+		$dbprefix      = Utils\get_flag_value( $config_create, 'dbprefix' );
+
+		if ( ! $dbprefix ) {
+			$dbprefix = WP_CLI::runcommand(
+				'@stag config get table_prefix',
+				array(
+					'return'     => true,  // Return 'STDOUT'; use 'all' for full object.
+					'launch'     => true,  // Create a new process.
+					'exit_error' => false, // Don't halt script execution on error.
+				)
+			);
+		}
+
+		WP_CLI::run_command( array( 'config', 'create' ), array( 'dbprefix' => $dbprefix ) );
+	}
+
+	private function scp( $ssh, $remote, $local = '.' ) {
+		$ssh = Utils\parse_ssh_url( $ssh );
+
+		$path = rtrim( $ssh['path'], '/' );
+		$port = isset( $ssh['port'] ) ? $ssh['port'] : 22;
+		$host = "{$ssh['user']}@{$ssh['user']}";
+
+		$connection = ssh2_connect( $host, $port );
+
+		$remote = "$path/$remote";
+
+		return ssh2_scp_recv( $connection, $remote, $local );
+	}
+
+	/**
+	 * Enviroment alias add.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <enf>
+	 * : Environment key.
+	 * prod or stag
+	 *
+	 * <ssh>
+	 * : Set ssh to environment.
+	 * [<scheme>:][<user>@]<host|container>[:<port>][<path>]
+	 *
+	 * @when before_wp_load
+	 */
+	public function env( $args ) {
+		list( $env, $ssh ) = $args;
+
+		if ( ! in_array( $env, array( 'prod', 'stag' ), true ) ) {
+			WP_CLI::error( 'Invalid environment key specified. Environment key can be only \'prod\' or \'stag\'.' );
+		}
+
+		WP_CLI::run_command(
+			array( 'cli', 'alias', 'add', "@$env" ),
+			array(
+				'set-ssh' => $ssh,
+				'config'  => 'project',
+			)
+		);
+	}
+
+	/**
+	 * Execute composer install.
+	 */
+	private function composer_install() {
+		$composer = $this->get_composer();
+
+		// Set up the EventSubscriber
+		$event_subscriber = new PackageManagerEventSubscriber();
+		$composer->getEventDispatcher()->addSubscriber( $event_subscriber );
+		// Set up the installer
+		$install = Installer::create( new ComposerIO(), $composer );
+		$install->setUpdate( true ); // Installer class will only override composer.lock with this flag
+		$install->setPreferSource( true ); // Use VCS when VCS for easier contributions.
+
+		$res = false;
+		try {
+			$res = $install->run();
+		} catch ( Exception $e ) {
+			WP_CLI::warning( $e->getMessage() );
+		}
+
+		if ( 0 === $res ) {
+			$revert = false;
+			WP_CLI::success( 'Composer installed.' );
+		} else {
+			$res_msg = $res ? " (Composer return code {$res})" : ''; // $res may be null apparently.
+			WP_CLI::debug( "composer.json content:\n" . file_get_contents( $json_path ), 'packages' );
+			WP_CLI::error( "Composer installation failed{$res_msg}." );
+		}
+	}
+
+	/**
+	 * Gets a Composer instance.
+	 */
+	private function get_composer() {
+		$this->avoid_composer_ca_bundle();
+		try {
+			$composer_path = 'composer.json';
+
+			// Composer's auto-load generating code makes some assumptions about where
+			// the 'vendor-dir' is, and where Composer is running from.
+			// Best to just pretend we're installing a package from ~/.wp-cli or similar
+			chdir( pathinfo( $composer_path, PATHINFO_DIRNAME ) );
+
+			// Prevent DateTime error/warning when no timezone set.
+			// Note: The package is loaded before WordPress load, For environments that don't have set time in php.ini.
+			// phpcs:ignore WordPress.WP.TimezoneChange.timezone_change_date_default_timezone_set,WordPress.PHP.NoSilencedErrors.Discouraged
+			date_default_timezone_set( @date_default_timezone_get() );
+
+			$composer = Factory::create( new NullIO(), $composer_path );
+		} catch ( Exception $e ) {
+			WP_CLI::error( sprintf( 'Failed to get composer instance: %s', $e->getMessage() ) );
+		}
+		return $composer;
+	}
+
+	/**
+	 * Avoid using default Composer CA bundle if in phar as we don't include it.
+	 * See https://github.com/composer/ca-bundle/blob/1.1.0/src/CaBundle.php#L64
+	 */
+	private function avoid_composer_ca_bundle() {
+		if ( Utils\inside_phar() && ! getenv( 'SSL_CERT_FILE' ) && ! getenv( 'SSL_CERT_DIR' ) && ! ini_get( 'openssl.cafile' ) && ! ini_get( 'openssl.capath' ) ) {
+			$certificate = Utils\extract_from_phar( WP_CLI_VENDOR_DIR . '/rmccue/requests/library/Requests/Transport/cacert.pem' );
+			putenv( "SSL_CERT_FILE={$certificate}" );
+		}
+	}
+
+}
+
+WP_CLI::add_command( 'install', array( '\WP_CLI\{{camel_title}}\Command', 'install' ) );
+WP_CLI::add_command( 'env', array( '\WP_CLI\{{camel_title}}\Command', 'env' ) );

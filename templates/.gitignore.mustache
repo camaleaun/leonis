@@ -1,0 +1,57 @@
+# Add any directories, files, or patterns you don't want to be tracked by version control.
+/wp*
+
+!/wp-cli.yml
+/*.php
+/*.txt
+/*.html
+/*.htaccess
+/*.sql
+/*.zip
+/*.csv
+
+# By default composer.lock is unnecessary.
+/composer.lock
+
+# Allow unignore subdirectories in content.
+!/wp-content
+/wp-content/*
+
+# Allow unignore files in languages plugins and themes.
+!/wp-content/languages
+/wp-content/languages/*
+!/wp-content/languages/plugins
+/wp-content/languages/plugins/*
+!/wp-content/languages/themes
+/wp-content/languages/themes/*
+
+# Allow unignore subdirectories in themes.
+!/wp-content/themes
+/wp-content/themes/*
+
+# Allow unignore subdirectories in plugins.
+!/wp-content/plugins
+/wp-content/plugins/*
+
+# Unignore zip files in plugins and themes root folder.
+!/wp-content/plugins/*.zip
+!/wp-content/themes/*.zip
+
+# Example for unignore theme.
+# !/wp-content/themes/starter-theme
+{{#theme}}
+!/wp-content/themes/{{slug}}
+{{/theme}}
+
+# Example for unignore plugin.
+# !/wp-content/plugin/sample-plugin
+{{#plugin}}
+!/wp-content/plugins/{{slug}}
+{{/plugin}}
+
+node_modules/
+vendor/
+
+.DS_Store
+Thumbs.db
+desktop.ini
