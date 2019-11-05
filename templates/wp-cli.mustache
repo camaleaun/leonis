@@ -20,3 +20,12 @@ install:
     -
   themes:
     -
+scripts:
+	local-config: wp touch wp-cli.local.yml
+	set-env: wp cli alias add @stag --prompt=set-ssh --config=project
+	db-get: wp @stag db export --url-old=http?://example.com --url-new=http://example.test --archived=xz --get
+	install:
+		- @local-config
+		- @set-env
+		- @db-get
+

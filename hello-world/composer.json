@@ -1,0 +1,8 @@
+{
+    "require": {
+        "wp-cli/wp-cli-tests\"": "^2.1"
+    },
+    "scripts": {
+        "phpcs": "run-phpcs-tests"
+    }
+}

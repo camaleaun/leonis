@@ -1,0 +1,19 @@
+---
+require:
+  - bin/command.php
+core download:
+  force: true
+config create:
+  dbname: hello-world
+  dbuser: root
+  dbpass:
+  force: true
+  skip-check: true
+  extra-php: |
+    define( 'WP_DEBUG', true );
+install:
+  env: @stag
+  plugins:
+    -
+  themes:
+    -
