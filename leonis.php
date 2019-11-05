@@ -10,3 +10,4 @@ if ( file_exists( $fervidum_leonis_autoloader ) ) {
 }
 
 WP_CLI::add_command( 'leonis', 'Leonis' );
+WP_CLI::add_command( 'scaffolf project', array( 'Leonis', 'create' ) );
